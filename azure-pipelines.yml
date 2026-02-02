@@ -1,20 +1,4 @@
-parameters:
-  - name: vmName
-    type: string
-    default: 'TestBotVM'
-  - name: vmSize
-    type: string
-    default: 'Standard_B1s'
-
-trigger:
-  - main
-
-variables:
-  serviceConnection: 'azurebotconnection'
-  backendRG: 'ccdemo'
-  backendStorage: 'terraformtfstate202622'
-  backendContainer: 'tfstate'
-  backendKey: 'terraform.tfstate'
+# ... (parameters and variables stay the same)
 
 stages:
 - stage: Provision
@@ -30,6 +14,8 @@ stages:
       inputs:
         provider: 'azurerm'
         command: 'init'
+        # ADD THIS LINE:
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
         backendServiceArm: '$(serviceConnection)'
         backendAzureRmResourceGroupName: '$(backendRG)'
         backendAzureRmStorageAccountName: '$(backendStorage)'
@@ -38,32 +24,21 @@ stages:
 
     - task: TerraformTaskV4@4
       displayName: 'Apply'
-      name: tfApply # Important for output referencing
+      name: tfApply
       inputs:
         provider: 'azurerm'
         command: 'apply'
+        # ADD THIS LINE:
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
         environmentServiceNameAzureRM: '$(serviceConnection)'
         commandOptions: '-var="vm_name=${{ parameters.vmName }}" -var="vm_size=${{ parameters.vmSize }}" -auto-approve'
 
     - script: |
-        # Capture the IP and set it as an output variable for other stages
+        # IMPORTANT: We must also be in the directory to get the output!
+        cd terraform 
         IP=$(terraform output -raw public_ip)
         echo "##vso[task.setvariable variable=VM_IP;isOutput=true]$IP"
       name: setVars
       displayName: 'Capture Terraform Output'
 
-- stage: Configure
-  dependsOn: Provision
-  variables:
-    # Fetch the variable from the previous stage
-    TARGET_IP: $[ stageDependencies.Provision.TerraformJob.outputs['setVars.VM_IP'] ]
-  jobs:
-  - job: AnsibleJob
-    steps:
-    - script: |
-        pip install ansible
-        export ANSIBLE_HOST_KEY_CHECKING=False
-        # Use a comma after the IP to tell Ansible it's a direct host
-        ansible-playbook -i "$(TARGET_IP)," ./ansible/monitor_setup.yml \
-        -u azureuser -e "ansible_password=Namashiva@1982"
-      displayName: 'Run Ansible'
+# ... (Configure stage stays the same)
