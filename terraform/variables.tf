@@ -1,3 +1,21 @@
+
+variable "vnet_name" {
+  type        = string
+  default     = "vnet-demo"
+  description = "Virtual Network name"
+}
+
+variable "subnet_name" {
+  type        = string
+  default     = "subnet-demo"
+  description = "Subnet name"
+}
+
+variable "public_ip_name" {
+  type        = string
+  default     = "public-ip-demo"
+  description = "Public IP name"
+}
 variable "rg_name" {
   type        = string
   default     = "rg-demo-auto"
