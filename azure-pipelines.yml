@@ -1,19 +1,29 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+parameters:
+  - name: vmName
+    type: string
+    default: 'TestBotVM'
+  - name: vmSize
+    type: string
+    default: 'Standard_B1s'
 
-trigger:
-- main
+trigger: none # We will run this manually for testing
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+- task: TerraformInstaller@0
+  inputs:
+    terraformVersion: 'latest'
 
 - script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+    terraform init
+    terraform apply -var="vm_name=${{ parameters.vmName }}" -var="vm_size=${{ parameters.vmSize }}" -auto-approve
+  displayName: 'Terraform Apply'
+  workingDirectory: './terraform'
+
+- script: |
+    PUBLIC_IP=$(terraform output -raw public_ip)
+    ansible-playbook -i "$PUBLIC_IP," ./ansible/monitor_setup.yml
+  displayName: 'Run Ansible'
+  workingDirectory: '.'

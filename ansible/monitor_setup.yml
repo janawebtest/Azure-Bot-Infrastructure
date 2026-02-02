@@ -1,0 +1,12 @@
+---
+- name: Setup Azure Monitoring
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install Azure Monitor Agent
+      shell: |
+        curl -sSL https://raw.githubusercontent.com/Microsoft/OMS-Agent-for-Linux/master/installer/scripts/onboard_agent.sh | sh
