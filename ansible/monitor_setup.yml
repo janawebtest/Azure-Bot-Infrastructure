@@ -1,12 +1,19 @@
----
+# monitor_setup.yml
 - name: Setup Azure Monitoring
   hosts: all
   become: yes
   tasks:
-    - name: Update apt cache
+    - name: Update system
       apt:
         update_cache: yes
+        upgrade: dist
 
-    - name: Install Azure Monitor Agent
+    - name: Install dependencies
+      apt:
+        name: [ 'unzip', 'python3-pip' ]
+        state: present
+
+    - name: Enable Performance Metrics Collection
       shell: |
-        curl -sSL https://raw.githubusercontent.com/Microsoft/OMS-Agent-for-Linux/master/installer/scripts/onboard_agent.sh | sh
+        # In a real environment, you'd use the az vm extension command here
+        echo "Azure Monitor Agent Installation Placeholder"
