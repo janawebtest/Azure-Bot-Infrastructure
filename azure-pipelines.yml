@@ -17,7 +17,7 @@ pool:
 
 variables:
   # 1. Update these with your ACTUAL names from the Azure Portal
-  serviceConnection: 'MyAzureConnection'         # The name you gave in DevOps Settings
+  serviceConnection: 'azurebotconnection'         # The name you gave in DevOps Settings
   backendRG: 'ccdemo'      # e.g., 'Storage-RG'
   backendStorage: 'terraformtfstate202622' # e.g., 'mystorageaccount123'
   backendContainer: 'tfstate'
