@@ -1,3 +1,6 @@
+# azure-pipelines.yml
+# This pipeline builds a VM with Terraform and then configures it with Ansible.
+
 parameters:
   - name: vmName
     type: string
@@ -6,37 +9,81 @@ parameters:
     type: string
     default: 'Standard_B1s'
 
-trigger: none
+trigger:
+  - main
 
 pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  # The name of your Service Connection created in Project Settings
-  serviceConnection: 'azurebotconnection' 
+  # 1. Update these with your ACTUAL names from the Azure Portal
+  serviceConnection: 'MyAzureConnection'         # The name you gave in DevOps Settings
+  backendRG: 'ccdemo'      # e.g., 'Storage-RG'
+  backendStorage: 'terraformtfstate202622' # e.g., 'mystorageaccount123'
+  backendContainer: 'tfstate'
+  backendKey: 'terraform.tfstate'
 
-steps:
-- task: TerraformInstaller@1
-  inputs:
-    terraformVersion: 'latest'
+stages:
+- stage: Provision
+  displayName: 'Terraform Provisioning'
+  jobs:
+  - job: TerraformJob
+    steps:
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: 'latest'
 
-- task: TerraformTaskV4@4
-  displayName: 'Terraform Init'
-  inputs:
-    provider: 'azurerm'
-    command: 'init'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-    backendServiceArm: '$(serviceConnection)'
-    backendAzureRmResourceGroupName: 'your-storage-rg'
-    backendAzureRmStorageAccountName: 'yourstorageaccountname'
-    backendAzureRmContainerName: 'tfstate'
-    backendAzureRmKey: 'terraform.tfstate'
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        backendServiceArm: '$(serviceConnection)'
+        backendAzureRmResourceGroupName: '$(backendRG)'
+        backendAzureRmStorageAccountName: '$(backendStorage)'
+        backendAzureRmContainerName: '$(backendContainer)'
+        backendAzureRmKey: '$(backendKey)'
 
-- task: TerraformTaskV4@4
-  displayName: 'Terraform Apply'
-  inputs:
-    provider: 'azurerm'
-    command: 'apply'
-    workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
-    environmentServiceNameAzureRM: '$(serviceConnection)'
-    commandOptions: '-var="vm_name=${{ parameters.vmName }}" -var="vm_size=${{ parameters.vmSize }}" -auto-approve'
+    - task: TerraformTaskV4@4
+      displayName: 'Terraform Apply'
+      name: terraformApply
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+        environmentServiceNameAzureRM: '$(serviceConnection)'
+        commandOptions: '-var="vm_name=${{ parameters.vmName }}" -var="vm_size=${{ parameters.vmSize }}" -auto-approve'
+
+- stage: Configure
+  displayName: 'Ansible Configuration'
+  dependsOn: Provision
+  condition: succeeded()
+  jobs:
+  - job: AnsibleJob
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+
+    - script: |
+        pip install ansible
+      displayName: 'Install Ansible'
+
+    - script: |
+        # This grabs the IP address from Terraform outputs to tell Ansible where to go
+        cd terraform
+        VM_IP=$(terraform output -raw public_ip)
+        echo "##vso[task.setvariable variable=VM_IP]$VM_IP"
+      displayName: 'Get VM IP'
+      env:
+        # These allow the script to read your Terraform state
+        ARM_CLIENT_ID: $(ARM_CLIENT_ID)
+        ARM_CLIENT_SECRET: $(ARM_CLIENT_SECRET)
+        ARM_SUBSCRIPTION_ID: $(ARM_SUBSCRIPTION_ID)
+        ARM_TENANT_ID: $(ARM_TENANT_ID)
+
+    - script: |
+        # Run Ansible against the new IP address
+        ansible-playbook -i "$(VM_IP)," ./ansible/monitor_setup.yml
+      displayName: 'Run Ansible Playbook'
