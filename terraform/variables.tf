@@ -18,7 +18,7 @@ variable "public_ip_name" {
 }
 variable "rg_name" {
   type        = string
-  default     = "rg-demo-auto"
+  default     = "rgautodemo"
   description = "description"
 }
 
