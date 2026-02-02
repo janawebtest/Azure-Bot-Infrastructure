@@ -10,7 +10,9 @@ terraform {
   }
 }
 
-provider "azurerm" { features {} }
+provider "azurerm" { 
+    features {} 
+    }
 
 resource "azurerm_resource_group" "rg" {
   name     = var.rg_name
@@ -32,7 +34,10 @@ resource "azurerm_linux_virtual_machine" "vm" {
     public_key = file("~/.ssh/id_rsa.pub")
   }
 
-  os_disk { caching = "ReadWrite", storage_account_type = "Standard_LRS" }
+  os_disk { 
+    caching = "ReadWrite"
+    storage_account_type = "Standard_LRS" 
+    }
   source_image_reference {
     publisher = "Canonical"
     offer     = "UbuntuServer"
